@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Mission Control{% endblock %}
+{% block content %}
+<div class="page-header"><div><div class="eyebrow">ESTATE OVERVIEW</div><h1>Dashboard</h1><p>Your platforms, infrastructure, and operational health.</p></div><a class="btn btn-outline-secondary" href="{% url 'platforms:platform_list' %}">View all platforms →</a></div>
+<dl class="metrics">
+<div class="metric"><dt>Platforms</dt><dd>{{ total }}</dd><small>Across your estate</small></div>
+<div class="metric"><dt>Active</dt><dd>{{ active_count }}</dd><small>Active lifecycle</small></div>
+<div class="metric"><dt>Development</dt><dd>{{ development_count }}</dd><small>Work in progress</small></div>
+<div class="metric"><dt>Healthy</dt><dd>{{ healthy_count }}</dd><small>{{ unknown_count }} not yet verified</small></div>
+<div class="metric"><dt>Needs attention</dt><dd>{{ needs_attention|length }}</dd><small>Issues &amp; incomplete setup</small></div>
+</dl>
+{% if total %}
+<section class="panel" aria-labelledby="estate-heading"><div class="panel-header"><h2 id="estate-heading">Platform overview <small>{{ total }} total</small></h2><span class="small text-secondary">{{ down_count }} down · {{ degraded_count }} degraded</span></div>
+<div class="table-responsive" role="region" aria-label="Platform overview" tabindex="0"><table class="table"><thead><tr><th scope="col">Platform</th><th scope="col">Technology</th><th scope="col">Lifecycle</th><th scope="col">Primary domain</th><th scope="col">Host</th><th scope="col">Health</th><th scope="col">Last deployment</th></tr></thead><tbody>
+{% for item in platform_summaries %}<tr><td><a class="entity-link" href="{{ item.platform.get_absolute_url }}">{{ item.platform.name }}</a><span class="subline">{{ item.platform.get_platform_type_display }}</span></td><td>{{ item.framework }}</td><td>{% include 'components/status.html' with value=item.platform.lifecycle_status label=item.lifecycle only %}</td><td>{% if item.primary_domain %}<a href="{{ item.primary_domain.url }}" target="_blank" rel="noopener noreferrer">{{ item.primary_domain.hostname }}</a>{% else %}<span class="text-secondary">Not configured</span>{% endif %}</td><td>{{ item.host.name|default:'Not configured' }}</td><td>{% include 'components/status.html' with value=item.health_status only %}</td><td>{% if item.latest_deployment %}{% include 'components/status.html' with value=item.latest_deployment.status label=item.latest_deployment.get_status_display only %}<span class="subline">{{ item.latest_deployment.deployed_at|date:'M j, H:i' }}</span>{% else %}<span class="text-secondary">Not recorded</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></section>
+<div class="two-column">
+<section class="panel" aria-labelledby="attention-heading"><div class="panel-header"><h2 id="attention-heading">Needs attention</h2><small class="text-secondary">Operational issues &amp; setup</small></div>{% for item in needs_attention %}<div class="attention-row"><a class="entity-link" href="{{ item.platform.get_absolute_url }}">{{ item.platform.name }} →</a>{% include 'components/attention.html' with issues=item.attention only %}</div>{% empty %}<p class="empty-note">No outstanding issues reported. {{ unknown_count }} platform{{ unknown_count|pluralize }} with unknown health.</p>{% endfor %}</section>
+<section class="panel" aria-labelledby="updates-heading"><div class="panel-header"><h2 id="updates-heading">Recent updates</h2><a class="small" href="{% url 'platforms:updates_list' %}">All updates →</a></div>{% for item in recent_updates %}<div class="activity-row"><span class="activity-kind update-badge update-badge--{{ item.source_type }}">{{ item.get_source_type_display }}</span><div>{% if item.platform %}<a class="entity-link" href="{{ item.platform.get_absolute_url }}">{{ item.platform.name }}</a>{% endif %}<div class="small text-secondary">{% if item.url %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}</div></div><time datetime="{{ item.published_at|date:'c' }}">{{ item.published_at|date:'M j, H:i' }}</time></div>{% empty %}<p class="empty-note">No updates yet. Run <code>python manage.py fetch_updates</code> to pull the first batch.</p>{% endfor %}</section>
+</div>
+{% else %}<section class="panel empty-state"><h2>No platforms yet</h2><p>Mission Control tracks websites, applications, infrastructure, deployments, and health from one place.</p><a href="{% url 'platforms:wizard_start' %}" class="btn btn-primary">Add your first Platform</a></section>{% endif %}
+{% if recent_log_entries %}
+<section class="panel" aria-labelledby="activity-heading"><div class="panel-header"><h2 id="activity-heading">Recent Activity</h2><a class="small" href="{% url 'platforms:activity_log' %}">Activity log →</a></div>
+{% for entry in recent_log_entries %}<div class="activity-row">
+  <span class="activity-kind activity-badge activity-badge--{{ entry.activity_type }}">{{ entry.get_activity_type_display }}</span>
+  <div>{% if entry.platform %}<a class="entity-link" href="{{ entry.platform.get_absolute_url }}">{{ entry.platform.name }}</a>{% else %}<span class="small text-secondary">Estate-wide</span>{% endif %}
+  <div class="small text-secondary">{% if entry.ref_url %}<a href="{{ entry.ref_url }}" target="_blank" rel="noopener noreferrer">{{ entry.title }}</a>{% else %}{{ entry.title }}{% endif %}{% if entry.is_milestone %} <span class="milestone-flag">★</span>{% endif %}</div></div>
+  <time datetime="{{ entry.occurred_at|date:'c' }}">{{ entry.occurred_at|date:'M j, H:i' }}</time>
+</div>{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{% if is_new %}Add Client{% else %}Edit {{ client.name }}{% endif %} — Mission Control{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb" class="small mb-3">
+  <a href="{% url 'platforms:client_list' %}">Clients</a>
+  {% if not is_new %}<span class="text-secondary"> / <a href="{{ client.get_absolute_url }}">{{ client.name }}</a></span>{% endif %}
+  <span class="text-secondary"> / {% if is_new %}Add{% else %}Edit{% endif %}</span>
+</nav>
+
+<div class="page-header"><div><h1>{% if is_new %}Add Client{% else %}Edit {{ client.name }}{% endif %}</h1></div></div>
+
+<div class="panel form-panel">
+  <form method="post">
+    {% csrf_token %}{% include 'components/form_errors.html' %}
+    <fieldset>
+      <legend class="mb-3">Client identity</legend>
+      {% include 'components/field.html' with field=form.name %}
+      {% include 'components/field.html' with field=form.slug %}
+      {% include 'components/field.html' with field=form.website %}
+      {% include 'components/field.html' with field=form.industry %}
+    </fieldset>
+    <fieldset class="mt-4">
+      <legend class="mb-3">Primary contact</legend>
+      {% include 'components/field.html' with field=form.contact_name %}
+      {% include 'components/field.html' with field=form.contact_email %}
+      {% include 'components/field.html' with field=form.contact_phone %}
+    </fieldset>
+    <fieldset class="mt-4">
+      <legend class="mb-3">Notes</legend>
+      {% include 'components/field.html' with field=form.notes %}
+    </fieldset>
+    <div class="d-flex gap-2 mt-4">
+      <button type="submit" class="btn btn-primary">{% if is_new %}Add Client{% else %}Save Changes{% endif %}</button>
+      <a class="btn btn-outline-secondary" href="{% if is_new %}{% url 'platforms:client_list' %}{% else %}{{ client.get_absolute_url }}{% endif %}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

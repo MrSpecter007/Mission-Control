@@ -1,0 +1,14 @@
+{% extends "platforms/wizard/base_wizard.html" %}{% block wizard_content %}<h2>Choose your technology</h2><p class="wizard-intro">Select the framework or CMS. This helps suggest your application service.</p><form method="post">{% csrf_token %}<fieldset><legend>Framework / CMS <span class="text-secondary">Required</span></legend><div class="choice-grid">{% for value,label in form.framework.field.choices %}<label class="choice-tile"><input type="radio" name="framework" value="{{ value }}" {% if form.framework.value == value %}checked{% endif %} required>{{ label }}</label>{% endfor %}</div>{% for error in form.framework.errors %}<p class="field-errors">{{ error }}</p>{% endfor %}</fieldset><div id="framework-other-wrap" style="display:none">{% include 'components/field.html' with field=form.framework_other %}</div>{% include 'components/field.html' with field=form.default_environment %}<div class="form-actions"><a class="btn btn-outline-secondary" href="{% url 'platforms:wizard_step' step=1 %}">← Back</a><button class="btn btn-primary" type="submit">Continue →</button></div></form><script>
+(function(){
+  var wrap = document.getElementById('framework-other-wrap');
+  var inp = document.getElementById('{{ form.framework_other.auto_id }}');
+  function toggle(){
+    var sel = document.querySelector('input[name="framework"]:checked');
+    var isOther = sel && sel.value === 'other';
+    wrap.style.display = isOther ? '' : 'none';
+    inp.required = isOther;
+  }
+  document.querySelectorAll('input[name="framework"]').forEach(function(r){r.addEventListener('change', toggle);});
+  toggle();
+})();
+</script>{% endblock %}

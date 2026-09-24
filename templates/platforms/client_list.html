@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Clients — Mission Control{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">WORKSPACE</div><h1>Clients</h1><p>Organisations whose platforms you manage.</p></div>
+  <a class="btn btn-primary" href="{% url 'platforms:client_add' %}">+ Add Client</a>
+</div>
+
+{% if clients %}
+<section class="panel" aria-label="Client list">
+  <div class="table-responsive" tabindex="0" role="region" aria-label="Clients">
+    <table class="table">
+      <thead><tr>
+        <th scope="col">Client</th>
+        <th scope="col">Industry</th>
+        <th scope="col">Contact</th>
+        <th scope="col">Platforms</th>
+        <th scope="col">Manage</th>
+      </tr></thead>
+      <tbody>
+        {% for client in clients %}
+        <tr>
+          <td>
+            <a class="entity-link" href="{{ client.get_absolute_url }}">{{ client.name }}</a>
+            {% if client.website %}<span class="subline"><a href="{{ client.website }}" target="_blank" rel="noopener noreferrer">{{ client.website }}</a></span>{% endif %}
+          </td>
+          <td>{{ client.industry|default:'—' }}</td>
+          <td>
+            {% if client.contact_name %}{{ client.contact_name }}{% if client.contact_email %}<span class="subline"><a href="mailto:{{ client.contact_email }}">{{ client.contact_email }}</a></span>{% endif %}{% else %}<span class="text-secondary">—</span>{% endif %}
+          </td>
+          <td>{{ client.platforms.count }}</td>
+          <td><a href="{% url 'platforms:client_edit' slug=client.slug %}">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% else %}
+<section class="panel empty-state">
+  <h2>No clients yet</h2>
+  <p>Add a client to track the organisations whose platforms you manage, then link their platforms to them.</p>
+  <a class="btn btn-primary" href="{% url 'platforms:client_add' %}">Add your first client</a>
+</section>
+{% endif %}
+{% endblock %}

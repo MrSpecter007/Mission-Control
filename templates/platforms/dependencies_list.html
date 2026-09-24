@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Dependencies — Mission Control{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">MONITORING</div><h1>Dependencies</h1><p>Package versions across all platform repositories — {{ total }} package{{ total|pluralize }} scanned.</p></div>
+</div>
+
+<form method="get" class="filter-bar mb-3">
+  <select name="platform" class="form-select form-select-sm" style="max-width:220px">
+    <option value="">All platforms</option>
+    {% for p in platforms %}<option value="{{ p.slug }}"{% if selected_platform == p.slug %} selected{% endif %}>{{ p.name }}</option>{% endfor %}
+  </select>
+  <select name="status" class="form-select form-select-sm" style="max-width:220px">
+    <option value="">All statuses</option>
+    {% for value, label in status_choices %}<option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <select name="ecosystem" class="form-select form-select-sm" style="max-width:160px">
+    <option value="">All ecosystems</option>
+    {% for value, label in ecosystem_choices %}<option value="{{ value }}"{% if selected_ecosystem == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+  {% if selected_platform or selected_status or selected_ecosystem %}<a href="{% url 'platforms:dependencies_list' %}" class="btn btn-sm btn-link text-secondary">Clear</a>{% endif %}
+</form>
+
+{% if page_obj.object_list %}
+<section class="panel" aria-label="Dependency list">
+  <div class="table-responsive" tabindex="0" role="region" aria-label="Package dependencies">
+    <table class="table">
+      <thead><tr>
+        <th scope="col">Package</th>
+        <th scope="col">Pinned</th>
+        <th scope="col">Latest</th>
+        <th scope="col">Status</th>
+        <th scope="col">Platform</th>
+        <th scope="col">Manifest</th>
+      </tr></thead>
+      <tbody>
+        {% for dep in page_obj %}
+        <tr>
+          <td>
+            <span class="dep-ecosystem dep-ecosystem--{{ dep.ecosystem }}">{{ dep.ecosystem }}</span>
+            {{ dep.name }}
+            {% if dep.is_deprecated and dep.deprecated_reason %}<span class="subline text-danger">{{ dep.deprecated_reason|truncatechars:80 }}</span>{% endif %}
+          </td>
+          <td class="mono">{{ dep.pinned_version }}</td>
+          <td class="mono">{{ dep.latest_version|default:'—' }}</td>
+          <td><span class="dep-status dep-status--{{ dep.status }}">
+            {% if dep.status == 'deprecated' %}⚠ Deprecated
+            {% elif dep.status == 'major_outdated' %}↑ v{{ dep.latest_major }} available
+            {% elif dep.status == 'minor_outdated' %}↗ Update available
+            {% elif dep.status == 'current' %}✓ Current
+            {% else %}— Unknown{% endif %}
+          </span></td>
+          <td><a href="{{ dep.platform.get_absolute_url }}">{{ dep.platform.name }}</a></td>
+          <td class="mono small text-secondary">{{ dep.manifest }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if page_obj.has_other_pages %}
+<nav aria-label="Pagination" class="d-flex gap-2 align-items-center mt-3">
+  {% if page_obj.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?{% if selected_platform %}platform={{ selected_platform }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_ecosystem %}ecosystem={{ selected_ecosystem }}&{% endif %}page={{ page_obj.previous_page_number }}">← Previous</a>{% endif %}
+  <span class="small text-secondary">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?{% if selected_platform %}platform={{ selected_platform }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_ecosystem %}ecosystem={{ selected_ecosystem }}&{% endif %}page={{ page_obj.next_page_number }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<section class="panel empty-state">
+  <h2>No dependency data yet</h2>
+  <p>Run <code>python manage.py fetch_updates --source dependencies</code> to scan repository manifests, or use the Fetch Updates button on any platform that has an active GitHub repository.</p>
+</section>
+{% endif %}
+{% endblock %}

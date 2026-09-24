@@ -1,0 +1,1 @@
+{% for issue in issues %}<span class="issue {% if issue == 'Health check failing' or issue == 'Latest deployment failed' %}issue-danger{% endif %}"><span class="issue-label">{% if issue == 'Health check failing' or issue == 'Latest deployment failed' %}Issue{% else %}Setup{% endif %}</span>{{ issue }}</span>{% endfor %}

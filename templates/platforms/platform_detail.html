@@ -1,0 +1,307 @@
+{% extends 'base.html' %}{% block title %}{{ platform.name }} — Mission Control{% endblock %}{% block content %}
+<nav aria-label="Breadcrumb" class="small mb-3"><a href="{% url 'platforms:platform_list' %}">Platforms</a> <span class="text-secondary">/ {{ platform.name }}</span></nav>
+<div class="page-header"><div><h1>{{ platform.name }}</h1><div class="actions"><span class="text-secondary">{{ platform.get_platform_type_display }} · {{ platform.framework_display }}</span>{% include 'components/status.html' with value=platform.lifecycle_status label=platform.get_lifecycle_status_display only %}{% include 'components/status.html' with value=health_status only %}{% if platform.primary_domain %}<a class="small" href="{{ platform.primary_domain.url }}" target="_blank" rel="noopener noreferrer">{{ platform.primary_domain.hostname }} ↗</a>{% endif %}</div>{% if platform.description %}<p class="profile-description">{{ platform.description }}</p>{% endif %}</div><div class="actions"><a class="btn btn-outline-secondary" href="{% url 'platforms:platform_edit' slug=platform.slug %}">Edit</a><a class="btn btn-outline-secondary" href="{% url 'platforms:deployment_add' slug=platform.slug %}">Add Deployment</a><form method="post" action="{% url 'platforms:run_health_check' slug=platform.slug %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Run Health Check</button></form><form method="post" action="{% url 'platforms:run_platform_updates' slug=platform.slug %}">{% csrf_token %}<button class="btn btn-outline-secondary" type="submit">Fetch Updates</button></form></div></div>
+<section class="panel" id="overview" aria-label="Platform summary"><dl class="metadata">
+<div><dt>Repository</dt><dd>{% with repo=repositories.first %}{% if repo %}{% if repo.url %}<a href="{{ repo.url }}" target="_blank" rel="noopener noreferrer">{{ repo.name }} ↗</a>{% else %}{{ repo.name }}{% endif %}<small>{{ repo.default_branch }} · {{ repo.get_provider_display }}</small>{% else %}<span class="text-secondary">Not connected</span><small><a href="{% url 'platforms:repository_add' slug=platform.slug %}">Connect repository</a></small>{% endif %}{% endwith %}</dd></div>
+<div><dt>Host</dt><dd>{% with service=platform.primary_host %}{% if service %}<a href="{% url 'platforms:host_edit' pk=service.host.pk %}">{{ service.host.name }}</a><small>{{ service.host.get_provider_display }}</small>{% else %}<span class="text-secondary">Not configured</span><small>Assign a host to a service</small>{% endif %}{% endwith %}</dd></div>
+<div><dt>Primary domain</dt><dd>{% with domain=platform.primary_domain %}{% if domain %}<a href="{{ domain.url }}" target="_blank" rel="noopener noreferrer">{{ domain.hostname }}</a><small>{{ domain.get_environment_display }} · {% if domain.ssl_enabled == True %}HTTPS{% elif domain.ssl_enabled == False %}HTTP{% else %}SSL unknown{% endif %}</small>{% else %}<span class="text-secondary">Not configured</span><small><a href="{% url 'platforms:domain_add' slug=platform.slug %}">Add domain</a></small>{% endif %}{% endwith %}</dd></div>
+<div><dt>Owner</dt><dd>{% if platform.ownership_type == 'client' and platform.client %}<a href="{{ platform.client.get_absolute_url }}">{{ platform.client.name }}</a><small>Client{% if platform.client.industry %} · {{ platform.client.industry }}{% endif %}</small>{% elif platform.ownership_type == 'client' %}<span class="text-secondary">Client (not linked)</span>{% else %}<span>Mr Specter</span><small>Internal</small>{% endif %}</dd></div>
+<div><dt>Environment</dt><dd>{{ platform.get_default_environment_display }}<small>Default environment</small></dd></div>
+<div><dt>Latest deployment</dt><dd>{% if latest_deployment %}{% include 'components/status.html' with value=latest_deployment.status label=latest_deployment.get_status_display only %}<small>{{ latest_deployment.version|default:'Version not recorded' }} · {{ latest_deployment.deployed_at|date:'M j, H:i' }}</small>{% else %}<span class="text-secondary">Not recorded</span>{% endif %}</dd></div>
+<div><dt>Current health</dt><dd>{% include 'components/status.html' with value=health_status only %}<small>{% if latest_health %}Checked {{ latest_health.checked_at|date:'M j, H:i' }}{% else %}No checks run yet{% endif %}</small></dd></div>
+</dl></section>
+{% if attention %}<section class="panel panel-body" aria-label="Platform attention"><h2 class="mb-2">Attention &amp; configuration</h2>{% include 'components/attention.html' with issues=attention only %}</section>{% endif %}
+<nav class="section-nav" aria-label="Platform sections"><a href="#overview">Overview</a><a href="#services">Services</a><a href="#domains">Domains</a><a href="#health">Health</a><a href="#source">Source</a><a href="#deps">Dependencies</a><a href="#credentials">Credentials</a><a href="#activity">Activity</a><a href="#updates">Updates</a></nav>
+<section class="panel section-anchor" id="services"><div class="panel-header"><h2>Services <small>{{ services|length }}</small></h2><a class="btn btn-sm btn-outline-secondary" href="{% url 'platforms:service_add' slug=platform.slug %}">Add Service</a></div>{% if services %}<div class="table-responsive" tabindex="0" role="region" aria-label="Platform services"><table class="table"><thead><tr><th scope="col">Service</th><th scope="col">Type</th><th scope="col">Environment</th><th scope="col">Host</th><th scope="col">Status</th><th scope="col">Manage</th></tr></thead><tbody>{% for service in services %}<tr><td>{{ service.name }}{% if service.runtime_identifier %}<span class="subline mono">{{ service.runtime_identifier }}</span>{% endif %}</td><td>{{ service.get_service_type_display }}</td><td>{{ service.get_environment_display }}</td><td>{{ service.host.name|default:'Not configured' }}</td><td>{% include 'components/status.html' with value=service.status label=service.get_status_display only %}</td><td><div class="d-flex align-items-center gap-1"><a class="btn btn-sm btn-link" href="{% url 'platforms:service_edit' slug=platform.slug pk=service.pk %}">Edit</a><form method="post" action="{% url 'platforms:service_delete' slug=platform.slug pk=service.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-secondary" type="submit" onclick="return confirm('Delete service {{ service.name }}? This cannot be undone.')">Delete</button></form></div></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty-note">No services configured yet. Add an application service when you are ready.</p>{% endif %}</section>
+<section class="panel section-anchor" id="domains"><div class="panel-header"><h2>Domains <small>{{ domains|length }}</small></h2><a class="btn btn-sm btn-outline-secondary" href="{% url 'platforms:domain_add' slug=platform.slug %}">Add Domain</a></div>{% if domains %}<div class="table-responsive" tabindex="0" role="region" aria-label="Platform domains"><table class="table"><thead><tr><th scope="col">Hostname</th><th scope="col">Environment</th><th scope="col">HTTPS / SSL</th><th scope="col">Status</th><th scope="col">Manage</th></tr></thead><tbody>{% for domain in domains %}<tr><td><a href="{{ domain.url }}" target="_blank" rel="noopener noreferrer">{{ domain.hostname }} ↗</a>{% if domain.is_primary %} <span class="badge">Primary</span>{% endif %}</td><td>{{ domain.get_environment_display }}</td><td>{% if domain.ssl_enabled == True %}HTTPS enabled{% elif domain.ssl_enabled == False %}HTTP only{% else %}<span class="text-secondary">Unknown</span>{% endif %}</td><td>{% include 'components/status.html' with value=domain.status label=domain.get_status_display only %}</td><td><div class="d-flex align-items-center gap-1"><a class="btn btn-sm btn-link" href="{% url 'platforms:domain_edit' slug=platform.slug pk=domain.pk %}">Edit</a><form method="post" action="{% url 'platforms:domain_delete' slug=platform.slug pk=domain.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-secondary" type="submit" onclick="return confirm('Remove domain {{ domain.hostname }}?')">Delete</button></form></div></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty-note">No domains configured yet. Local and development platforms do not require one.</p>{% endif %}</section>
+<section class="panel section-anchor" id="health"><div class="panel-header"><h2>Health</h2>{% include 'components/status.html' with value=health_status only %}</div>
+{% if latest_health %}
+<dl class="metadata">
+  <div><dt>Primary endpoint</dt><dd class="mono">{{ latest_health.endpoint|default:'Not configured' }}</dd></div>
+  <div><dt>Last checked</dt><dd>{{ latest_health.checked_at|date:'M j, Y · H:i' }}</dd></div>
+  <div><dt>Response</dt><dd>HTTP {{ latest_health.http_status|default_if_none:'—' }}<small>{{ latest_health.response_time_ms|floatformat:0|default:'—' }} ms</small></dd></div>
+</dl>
+{% if latest_health.endpoint %}
+<div class="homepage-preview">
+  <div class="homepage-preview__img">
+    {% if latest_health.homepage_preview.image %}
+    <img src="{{ latest_health.homepage_preview.image }}" alt="Homepage preview" loading="lazy"
+         onerror="this.src='https://image.thum.io/get/width/400/crop/600/{{ latest_health.endpoint }}'">
+    {% else %}
+    <img src="https://image.thum.io/get/width/400/crop/600/{{ latest_health.endpoint }}" alt="Homepage screenshot" loading="lazy" onerror="this.closest('.homepage-preview__img').hidden=true">
+    {% endif %}
+  </div>
+  <div class="homepage-preview__meta">
+    {% if latest_health.homepage_preview.title %}<strong class="homepage-preview__title">{{ latest_health.homepage_preview.title|truncatechars:80 }}</strong>{% endif %}
+    {% if latest_health.homepage_preview.description %}<p class="homepage-preview__desc">{{ latest_health.homepage_preview.description|truncatechars:160 }}</p>{% endif %}
+    <a href="{{ latest_health.endpoint }}" class="homepage-preview__url mono small" target="_blank" rel="noopener">{{ latest_health.endpoint }}</a>
+    <span class="homepage-preview__stamp small text-secondary">Snapshot from {{ latest_health.checked_at|date:'M j, Y · H:i' }}</span>
+  </div>
+</div>
+{% endif %}
+{% if latest_health.url_results %}
+<h3 class="small text-secondary mt-3 mb-2">Monitored pages — last check</h3>
+<div class="table-responsive" tabindex="0" role="region" aria-label="Monitored URL results">
+  <table class="table"><thead><tr><th scope="col">Page</th><th scope="col">Path</th><th scope="col">Health</th><th scope="col">HTTP</th><th scope="col">Response</th><th scope="col">Detail</th></tr></thead><tbody>
+  {% for r in latest_health.url_results %}
+  <tr>
+    <td>{{ r.label }}{% if r.is_critical %} <span class="badge" title="Critical">⚑</span>{% endif %}</td>
+    <td class="mono small">{{ r.path }}</td>
+    <td>{% include 'components/status.html' with value=r.status only %}</td>
+    <td>{{ r.http_status|default:'—' }}</td>
+    <td>{{ r.response_time_ms|default:'—' }} ms</td>
+    <td class="small text-secondary">{{ r.error|default:'OK' }}</td>
+  </tr>
+  {% endfor %}
+  </tbody></table>
+</div>
+{% endif %}
+<div class="table-responsive mt-3" tabindex="0" role="region" aria-label="Recent health checks">
+  <table class="table"><thead><tr><th scope="col">Health</th><th scope="col">Checked</th><th scope="col">HTTP</th><th scope="col">Response</th><th scope="col">Detail</th></tr></thead><tbody>
+  {% for check in health_checks %}<tr>
+    <td>{% include 'components/status.html' with value=check.status label=check.get_status_display only %}</td>
+    <td>{{ check.checked_at|date:'M j, H:i' }}</td>
+    <td>{{ check.http_status|default_if_none:'—' }}</td>
+    <td>{{ check.response_time_ms|floatformat:0|default:'—' }} ms</td>
+    <td>{% if check.error_info %}<details><summary>Detail</summary><p class="small text-secondary mt-2">{{ check.error_info|truncatechars:300 }}</p></details>{% else %}<span class="text-secondary">—</span>{% endif %}</td>
+  </tr>{% endfor %}
+  </tbody></table>
+</div>
+<p class="empty-note small">Showing up to 20 latest checks.</p>
+{% else %}<p class="empty-note">Health is unknown until a check runs. Use Run Health Check above to check the primary domain.</p>{% endif %}
+<div class="panel-header mt-4"><h3>Monitored pages <small>{{ monitored_urls|length }}</small></h3></div>
+{% if monitored_urls %}
+<div class="table-responsive" tabindex="0" role="region" aria-label="Monitored URLs"><table class="table"><thead><tr><th scope="col">Label</th><th scope="col">Path</th><th scope="col">Critical</th><th scope="col">Remove</th></tr></thead><tbody>
+{% for mu in monitored_urls %}<tr>
+  <td>{{ mu.label }}</td><td class="mono small">{{ mu.path }}</td>
+  <td>{% if mu.is_critical %}⚑ Yes{% else %}—{% endif %}</td>
+  <td><form method="post" action="{% url 'platforms:monitored_url_delete' slug=platform.slug pk=mu.pk %}" style="display:inline">{% csrf_token %}<button class="btn btn-sm btn-link text-secondary" type="submit" onclick="return confirm('Remove monitoring for {{ mu.label }}?')">Remove</button></form></td>
+</tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+<form method="post" action="{% url 'platforms:monitored_url_add' slug=platform.slug %}" class="mt-3 px-3 pb-4">
+  {% csrf_token %}
+  <div class="filter-bar align-items-end">
+    <div>
+      <label class="form-label small" for="mu_label">Label</label>
+      <input id="mu_label" name="label" class="form-control form-control-sm" placeholder="Admin panel" required>
+    </div>
+    <div>
+      <label class="form-label small" for="mu_path">Path</label>
+      <input id="mu_path" name="path" class="form-control form-control-sm" placeholder="/admin/" required>
+    </div>
+    <div class="d-flex align-items-center gap-2 pt-3">
+      <input type="checkbox" id="mu_critical" name="is_critical" value="on">
+      <label for="mu_critical" class="small mb-0">Critical</label>
+    </div>
+    <button type="submit" class="btn btn-sm btn-outline-secondary">Add page</button>
+  </div>
+</form>
+</section>
+<section class="panel section-anchor" id="source"><div class="panel-header"><h2>Source repositories</h2><a class="btn btn-sm btn-outline-secondary" href="{% url 'platforms:repository_add' slug=platform.slug %}">Connect Repository</a></div>{% if repositories %}<div class="table-responsive" tabindex="0" role="region" aria-label="Platform repositories"><table class="table"><thead><tr><th scope="col">Repository</th><th scope="col">Provider</th><th scope="col">Branch</th><th scope="col">Status</th><th scope="col">Manage</th></tr></thead><tbody>{% for repo in repositories %}<tr><td>{% if repo.url %}<a href="{{ repo.url }}" target="_blank" rel="noopener noreferrer">{{ repo.name }} ↗</a>{% else %}{{ repo.name }}{% endif %}</td><td>{{ repo.get_provider_display }}</td><td class="mono">{{ repo.default_branch }}</td><td>{% include 'components/status.html' with value=repo.status label=repo.get_status_display only %}</td><td><div class="d-flex align-items-center gap-1"><a class="btn btn-sm btn-link" href="{% url 'platforms:repository_edit' slug=platform.slug pk=repo.pk %}">Edit</a><form method="post" action="{% url 'platforms:repository_delete' slug=platform.slug pk=repo.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-secondary" type="submit" onclick="return confirm('Disconnect repository {{ repo.name }}? Dependency and update history linked to it will also be removed.')">Disconnect</button></form></div></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty-note">No repository connected yet. You can connect one at any time.</p>{% endif %}</section>
+<section class="panel section-anchor" id="deps">
+  <div class="panel-header">
+    <h2>Dependencies <small>{{ platform_deps|length }}</small></h2>
+    <a class="small" href="{% url 'platforms:dependencies_list' %}?platform={{ platform.slug }}">All →</a>
+  </div>
+  {% if platform_deps %}
+  <div class="table-responsive" tabindex="0" role="region" aria-label="Platform dependencies">
+    <table class="table">
+      <thead><tr><th scope="col">Package</th><th scope="col">Pinned</th><th scope="col">Latest</th><th scope="col">Status</th><th scope="col">Manifest</th></tr></thead>
+      <tbody>
+        {% for dep in platform_deps %}
+        <tr>
+          <td>
+            <span class="dep-ecosystem dep-ecosystem--{{ dep.ecosystem }}">{{ dep.ecosystem }}</span>
+            {{ dep.name }}
+            {% if dep.is_deprecated and dep.deprecated_reason %}<span class="subline text-danger">{{ dep.deprecated_reason|truncatechars:60 }}</span>{% endif %}
+          </td>
+          <td class="mono small">{{ dep.pinned_version }}</td>
+          <td class="mono small">{{ dep.latest_version|default:'—' }}</td>
+          <td><span class="dep-status dep-status--{{ dep.status }}">
+            {% if dep.status == 'deprecated' %}⚠ Deprecated
+            {% elif dep.status == 'major_outdated' %}↑ v{{ dep.latest_major }}
+            {% elif dep.status == 'minor_outdated' %}↗ Update
+            {% elif dep.status == 'current' %}✓
+            {% else %}—{% endif %}
+          </span></td>
+          <td class="mono small text-secondary">{{ dep.manifest }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-note">No dependency data yet. Click <strong>Fetch Updates</strong> above to scan this platform's repository manifests.</p>
+  {% endif %}
+</section>
+
+<section class="panel section-anchor" id="credentials">
+  <div class="panel-header"><h2>Credentials <small>{{ credentials|length }}</small></h2></div>
+  {% if credentials %}
+  <div class="table-responsive" tabindex="0" role="region" aria-label="Credentials">
+    <table class="table">
+      <thead><tr><th scope="col">Label</th><th scope="col">Type</th><th scope="col">URL</th><th scope="col">Username</th><th scope="col">Password</th><th scope="col">Notes</th><th scope="col"></th></tr></thead>
+      <tbody>
+      {% for cred in credentials %}
+      <tr>
+        <td>{{ cred.label }}</td>
+        <td><span class="badge" style="background:#1e2a1e;color:#82c882;border:1px solid #2e5e30;font-size:9px;font-weight:700;letter-spacing:.05em;padding:2px 6px;border-radius:3px;text-transform:uppercase;">{{ cred.get_kind_display }}</span></td>
+        <td>{% if cred.url %}<a href="{{ cred.url }}" target="_blank" rel="noopener noreferrer" title="{{ cred.url }}">{{ cred.url|truncatechars:30 }}</a>{% else %}<span class="text-secondary">—</span>{% endif %}</td>
+        <td>{% if cred.username %}<code class="small">{{ cred.username }}</code>{% else %}<span class="text-secondary">—</span>{% endif %}</td>
+        <td>
+          {% if cred.password_encrypted %}
+          <span class="cred-password-mask" id="pw-{{ cred.pk }}">••••••••</span>
+          <button type="button" class="btn btn-sm btn-link py-0 px-1" style="font-size:11px;" data-reveal-url="{% url 'platforms:credential_reveal' slug=platform.slug pk=cred.pk %}" data-target="pw-{{ cred.pk }}" data-copy-btn="copy-{{ cred.pk }}">Reveal</button>
+          <button type="button" class="btn btn-sm btn-link py-0 px-1" style="font-size:11px;" id="copy-{{ cred.pk }}" data-clipboard-target="pw-{{ cred.pk }}" hidden>Copy</button>
+          {% else %}<span class="text-secondary">—</span>{% endif %}
+        </td>
+        <td class="small text-secondary">{{ cred.notes|truncatechars:40 }}</td>
+        <td>
+          <div class="d-flex align-items-center gap-1">
+            <button type="button" class="btn btn-sm btn-link" data-bs-toggle="modal" data-bs-target="#editCredModal{{ cred.pk }}">Edit</button>
+            <form method="post" action="{% url 'platforms:credential_delete' slug=platform.slug pk=cred.pk %}" onsubmit="return confirm('Delete credential {{ cred.label }}?')">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link text-secondary">Delete</button></form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-note">No credentials stored yet.</p>
+  {% endif %}
+
+  <div class="panel-header mt-3"><h3>Add credential</h3></div>
+  <form method="post" action="{% url 'platforms:credential_add' slug=platform.slug %}" class="mt-3 px-3 pb-4">
+    {% csrf_token %}
+    <div class="row g-2">
+      <div class="col-sm-4"><label class="form-label small">Label *</label>{{ credential_form.label }}</div>
+      <div class="col-sm-3"><label class="form-label small">Type</label>{{ credential_form.kind }}</div>
+      <div class="col-sm-5"><label class="form-label small">URL</label>{{ credential_form.url }}</div>
+      <div class="col-sm-4"><label class="form-label small">Username</label>{{ credential_form.username }}</div>
+      <div class="col-sm-4"><label class="form-label small">Password / Secret</label>{{ credential_form.password }}</div>
+      <div class="col-sm-4"><label class="form-label small">Notes</label>{{ credential_form.notes }}</div>
+    </div>
+    <div class="mt-2"><button type="submit" class="btn btn-sm btn-primary">Save credential</button></div>
+  </form>
+
+  {% for cred in credentials %}
+  <div class="modal fade" id="editCredModal{{ cred.pk }}" tabindex="-1" aria-labelledby="editCredLabel{{ cred.pk }}" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="editCredLabel{{ cred.pk }}">Edit: {{ cred.label }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="post" action="{% url 'platforms:credential_edit' slug=platform.slug pk=cred.pk %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          {% with ef=credential_form %}
+          <div class="mb-2"><label class="form-label small">Label *</label><input type="text" name="label" value="{{ cred.label }}" class="form-control form-control-sm" required></div>
+          <div class="mb-2"><label class="form-label small">Type</label><select name="kind" class="form-select form-select-sm">{% for val,display in ef.fields.kind.choices %}<option value="{{ val }}"{% if val == cred.kind %} selected{% endif %}>{{ display }}</option>{% endfor %}</select></div>
+          <div class="mb-2"><label class="form-label small">URL</label><input type="url" name="url" value="{{ cred.url }}" class="form-control form-control-sm" placeholder="https://"></div>
+          <div class="mb-2"><label class="form-label small">Username</label><input type="text" name="username" value="{{ cred.username }}" class="form-control form-control-sm"></div>
+          <div class="mb-2"><label class="form-label small">Password / Secret <small class="text-secondary">(leave blank to keep current)</small></label><input type="password" name="password" class="form-control form-control-sm" autocomplete="new-password" placeholder="Leave blank to keep unchanged"></div>
+          <div class="mb-2"><label class="form-label small">Notes</label><textarea name="notes" rows="2" class="form-control form-control-sm">{{ cred.notes }}</textarea></div>
+          {% endwith %}
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-sm btn-primary">Save changes</button></div>
+      </form>
+    </div></div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="panel section-anchor" id="activity">
+  <div class="panel-header">
+    <h2>Activity <small>{{ activity_entries|length }}{% if activity_entries|length == 10 %}+{% endif %}</small></h2>
+    <div class="d-flex gap-2 align-items-center">
+      <a class="small" href="{% url 'platforms:activity_log' %}?platform={{ platform.slug }}">All →</a>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addActivityModal">+ Log Activity</button>
+    </div>
+  </div>
+  {% if activity_entries %}
+  <ul class="activity-timeline" aria-label="Platform activity">
+    {% for entry in activity_entries %}
+    <li class="activity-timeline-row{% if entry.is_milestone %} is-milestone{% endif %}">
+      <div class="activity-timeline-date">
+        <time datetime="{{ entry.occurred_at|date:'c' }}" title="{{ entry.occurred_at|date:'Y-m-d H:i' }}">{{ entry.occurred_at|date:'M j, Y' }}<br><span style="font-size:10px">{{ entry.occurred_at|date:'H:i' }}</span></time>
+      </div>
+      <div class="activity-timeline-body">
+        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+          <span class="activity-badge activity-badge--{{ entry.activity_type }}">{{ entry.get_activity_type_display }}</span>
+          {% if entry.is_milestone %}<span class="milestone-flag" title="Milestone">★</span>{% endif %}
+        </div>
+        <p class="activity-timeline-title">{% if entry.ref_url %}<a href="{{ entry.ref_url }}" target="_blank" rel="noopener noreferrer">{{ entry.title }}</a>{% else %}{{ entry.title }}{% endif %}</p>
+        {% if entry.description %}<p class="activity-timeline-desc">{{ entry.description|truncatechars:160 }}</p>{% endif %}
+      </div>
+      <div class="d-flex gap-1 flex-shrink-0">
+        <a href="{% url 'platforms:activity_edit' pk=entry.pk %}" class="btn btn-sm btn-link" style="font-size:11px">Edit</a>
+        <form method="post" action="{% url 'platforms:activity_delete' pk=entry.pk %}" onsubmit="return confirm('Delete this activity entry?')">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link text-secondary" style="font-size:11px">Delete</button></form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty-note">No activity logged for this platform yet.</p>
+  {% endif %}
+</section>
+
+<!-- Add Activity Modal -->
+<div class="modal fade" id="addActivityModal" tabindex="-1" aria-labelledby="addActivityLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="addActivityLabel">Log Activity — {{ platform.name }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <form method="post" action="{% url 'platforms:platform_activity_add' slug=platform.slug %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        <input type="hidden" name="platform" value="{{ platform.pk }}">
+        <div class="row g-2">
+          <div class="col-sm-8"><label class="form-label small">Title *</label>{{ activity_form.title }}</div>
+          <div class="col-sm-4"><label class="form-label small">Type</label>{{ activity_form.activity_type }}</div>
+          <div class="col-sm-6"><label class="form-label small">Date &amp; time *</label>{{ activity_form.occurred_at }}</div>
+          <div class="col-sm-6 d-flex align-items-end pb-2"><div class="checkbox-field">{{ activity_form.is_milestone }}<label for="{{ activity_form.is_milestone.id_for_label }}">Mark as milestone</label></div></div>
+          <div class="col-12"><label class="form-label small">Description</label>{{ activity_form.description }}</div>
+          <div class="col-12"><label class="form-label small">Reference URL</label>{{ activity_form.ref_url }}</div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-sm btn-primary">Log Activity</button></div>
+    </form>
+  </div></div>
+</div>
+
+<section class="panel section-anchor" id="updates"><div class="panel-header"><h2>Updates <small>{{ platform_news|length }}</small></h2><a class="small" href="{% url 'platforms:updates_list' %}?platform={{ platform.slug }}">All →</a></div>{% if platform_news %}<div class="table-responsive" tabindex="0" role="region" aria-label="Platform updates"><table class="table"><thead><tr><th scope="col">Update</th><th scope="col">Source</th><th scope="col">When</th></tr></thead><tbody>{% for item in platform_news %}<tr><td>{% if item.url %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}{% if item.body %}<span class="subline">{{ item.body|truncatechars:80 }}</span>{% endif %}</td><td><span class="badge update-badge update-badge--{{ item.source_type }}">{{ item.get_source_type_display }}</span></td><td><time datetime="{{ item.published_at|date:'c' }}">{{ item.published_at|date:'M j, H:i' }}</time></td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty-note">No updates fetched yet for this platform.</p>{% endif %}</section>
+<div class="actions small text-secondary"><span>Created {{ platform.created_at|date:'M j, Y' }} · Updated {{ platform.updated_at|date:'M j, Y' }}</span>{% if platform.lifecycle_status != 'archived' %}<a class="ms-auto text-secondary" href="{% url 'platforms:platform_archive' slug=platform.slug %}">Archive platform</a>{% endif %}</div>
+<script>
+document.querySelectorAll('[data-reveal-url]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const targetId = btn.dataset.target;
+    const span = document.getElementById(targetId);
+    const copyBtn = document.getElementById(btn.dataset.copyBtn);
+    if (btn.textContent === 'Hide') {
+      span.textContent = '••••••••';
+      btn.textContent = 'Reveal';
+      if (copyBtn) copyBtn.hidden = true;
+      return;
+    }
+    btn.textContent = '…';
+    try {
+      const resp = await fetch(btn.dataset.revealUrl, {
+        method: 'POST',
+        headers: {'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''},
+      });
+      const data = await resp.json();
+      span.textContent = data.password || '(empty)';
+      btn.textContent = 'Hide';
+      if (copyBtn) {
+        copyBtn.hidden = false;
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(data.password || '').then(() => {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+          });
+        };
+      }
+    } catch (e) {
+      btn.textContent = 'Error';
+    }
+  });
+});
+</script>
+{% endblock %}

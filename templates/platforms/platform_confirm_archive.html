@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Archive {{ platform.name }}{% endblock %}
+{% block content %}
+<div style="max-width:520px">
+  <h5 class="text-light mb-3">Archive "{{ platform.name }}"?</h5>
+  <p class="text-secondary">This will set the platform's lifecycle status to <strong>archived</strong>. No data will be deleted.</p>
+  <form method="post" class="d-flex gap-2">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-warning">Archive</button>
+    <a href="{{ platform.get_absolute_url }}" class="btn btn-outline-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

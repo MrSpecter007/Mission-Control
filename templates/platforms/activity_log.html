@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Activity Log — Mission Control{% endblock %}
+{% block extra_head %}<link rel="alternate" type="application/atom+xml" title="Mission Control Milestones" href="{% url 'platforms:activity_milestone_feed' %}">{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="eyebrow">OPERATIONS</div>
+    <h1>Activity Log</h1>
+    <p>Work, changes, decisions, and milestones across the estate.</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <a href="{% url 'platforms:activity_add' %}" class="btn btn-primary">+ Log Activity</a>
+    <a href="{% url 'platforms:activity_milestone_feed' %}" class="btn btn-sm btn-outline-secondary" title="Milestone Atom feed" aria-label="Subscribe to milestone feed">&#x2318; Feed</a>
+  </div>
+</div>
+
+<form method="get" class="filter-bar mb-3">
+  <select name="platform" class="form-select form-select-sm" style="max-width:220px">
+    <option value="">All platforms</option>
+    {% for p in platforms %}<option value="{{ p.slug }}"{% if selected_platform == p.slug %} selected{% endif %}>{{ p.name }}</option>{% endfor %}
+  </select>
+  <select name="type" class="form-select form-select-sm" style="max-width:200px">
+    <option value="">All types</option>
+    {% for value, label in type_choices %}<option value="{{ value }}"{% if selected_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  {% if active_users %}
+  <select name="user" class="form-select form-select-sm" style="max-width:180px">
+    <option value="">All contributors</option>
+    {% for u in active_users %}<option value="{{ u.pk }}"{% if selected_user == u.pk|stringformat:"s" %} selected{% endif %}>{{ u.username }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <label class="d-flex align-items-center gap-2 small" style="cursor:pointer">
+    <input type="checkbox" name="milestones" value="1"{% if milestones_only %} checked{% endif %}> Milestones only
+  </label>
+  <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+  {% if selected_platform or selected_type or milestones_only or selected_user %}<a href="{% url 'platforms:activity_log' %}" class="btn btn-sm btn-link text-secondary">Clear</a>{% endif %}
+</form>
+
+{% if page_obj.object_list %}
+<section class="panel" aria-label="Activity log">
+  <ul class="activity-timeline" aria-label="Activity entries">
+  {% for entry in page_obj %}
+  <li class="activity-timeline-row{% if entry.is_milestone %} is-milestone{% endif %}">
+    <div class="activity-timeline-date">
+      <time datetime="{{ entry.occurred_at|date:'c' }}" title="{{ entry.occurred_at|date:'Y-m-d H:i' }}">{{ entry.occurred_at|date:'M j, Y' }}<br><span style="font-size:10px">{{ entry.occurred_at|date:'H:i' }}</span></time>
+    </div>
+    <div class="activity-timeline-body">
+      <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+        <span class="activity-badge activity-badge--{{ entry.activity_type }}">{{ entry.get_activity_type_display }}</span>
+        {% if entry.platform %}<a class="entity-link" style="font-size:12px" href="{{ entry.platform.get_absolute_url }}">{{ entry.platform.name }}</a>{% else %}<span class="small text-secondary">Estate-wide</span>{% endif %}
+        {% if entry.is_milestone %}<span class="milestone-flag" title="Milestone">★</span>{% endif %}
+      </div>
+      <p class="activity-timeline-title">
+        {% if entry.ref_url %}<a href="{{ entry.ref_url }}" target="_blank" rel="noopener noreferrer">{{ entry.title }}</a>{% else %}{{ entry.title }}{% endif %}
+      </p>
+      {% if entry.description %}<p class="activity-timeline-desc">{{ entry.description|truncatechars:200 }}</p>{% endif %}
+      {% if entry.created_by %}<p class="activity-timeline-desc" style="margin-top:3px">Logged by <a href="{% url 'platforms:activity_log' %}?user={{ entry.created_by.pk }}" class="text-secondary">{{ entry.created_by.username }}</a></p>{% endif %}
+    </div>
+    <div class="d-flex gap-1 flex-shrink-0">
+      <a href="{% url 'platforms:activity_edit' pk=entry.pk %}" class="btn btn-sm btn-link" style="font-size:11px">Edit</a>
+      <form method="post" action="{% url 'platforms:activity_delete' pk=entry.pk %}" onsubmit="return confirm('Delete this activity entry?')">{% csrf_token %}<button type="submit" class="btn btn-sm btn-link text-secondary" style="font-size:11px">Delete</button></form>
+    </div>
+  </li>
+  {% endfor %}
+  </ul>
+</section>
+
+{% if page_obj.has_other_pages %}
+<nav aria-label="Pagination" class="d-flex gap-2 align-items-center mt-3">
+  {% if page_obj.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?{% if selected_platform %}platform={{ selected_platform }}&{% endif %}{% if selected_type %}type={{ selected_type }}&{% endif %}{% if selected_user %}user={{ selected_user }}&{% endif %}{% if milestones_only %}milestones=1&{% endif %}page={{ page_obj.previous_page_number }}">← Previous</a>{% endif %}
+  <span class="small text-secondary">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?{% if selected_platform %}platform={{ selected_platform }}&{% endif %}{% if selected_type %}type={{ selected_type }}&{% endif %}{% if selected_user %}user={{ selected_user }}&{% endif %}{% if milestones_only %}milestones=1&{% endif %}page={{ page_obj.next_page_number }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<section class="panel empty-state">
+  <h2>No activity logged yet</h2>
+  <p>Use the activity log to record work, decisions, deployments, incidents, and milestones across your estate.</p>
+  <a href="{% url 'platforms:activity_add' %}" class="btn btn-primary">Log first activity</a>
+</section>
+{% endif %}
+{% endblock %}

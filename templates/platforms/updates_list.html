@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Updates — Mission Control{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="eyebrow">MONITORING</div><h1>Technology Updates</h1><p>GitHub activity, framework releases, deployment lag, and dependency version alerts.</p></div>
+  <form method="post" action="{% url 'platforms:run_updates' %}">{% csrf_token %}<button class="btn btn-primary" type="submit">Fetch All Updates</button></form>
+</div>
+
+<form method="get" class="filter-bar mb-3">
+  <select name="platform" class="form-select form-select-sm" style="max-width:220px">
+    <option value="">All platforms</option>
+    {% for p in platforms %}<option value="{{ p.slug }}"{% if selected_platform == p.slug %} selected{% endif %}>{{ p.name }}</option>{% endfor %}
+  </select>
+  <select name="source" class="form-select form-select-sm" style="max-width:220px">
+    <option value="">All sources</option>
+    {% for value, label in source_choices %}<option value="{{ value }}"{% if selected_source == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+  {% if selected_platform or selected_source %}<a href="{% url 'platforms:updates_list' %}" class="btn btn-sm btn-link text-secondary">Clear</a>{% endif %}
+</form>
+
+{% if page_obj.object_list %}
+<section class="panel" aria-label="Updates feed">
+  <div class="table-responsive" tabindex="0" role="region" aria-label="Technology updates">
+    <table class="table">
+      <thead><tr>
+        <th scope="col">Update</th>
+        <th scope="col">Platform</th>
+        <th scope="col">Source</th>
+        <th scope="col">When</th>
+      </tr></thead>
+      <tbody>
+        {% for item in page_obj %}
+        <tr>
+          <td>
+            <span class="mono" style="font-size:1.1em;margin-right:6px">{{ item.source_icon }}</span>
+            {% if item.url %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+            {% if item.body %}<span class="subline">{{ item.body|truncatechars:100 }}</span>{% endif %}
+          </td>
+          <td>
+            {% if item.platform %}<a href="{{ item.platform.get_absolute_url }}">{{ item.platform.name }}</a>{% else %}<span class="text-secondary">—</span>{% endif %}
+          </td>
+          <td><span class="badge update-badge update-badge--{{ item.source_type }}">{{ item.get_source_type_display }}</span></td>
+          <td><time datetime="{{ item.published_at|date:'c' }}" title="{{ item.published_at|date:'Y-m-d H:i' }}">{{ item.published_at|date:'M j, H:i' }}</time></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if page_obj.has_other_pages %}
+<nav aria-label="Pagination" class="d-flex gap-2 align-items-center mt-3">
+  {% if page_obj.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?{% if selected_platform %}platform={{ selected_platform }}&{% endif %}{% if selected_source %}source={{ selected_source }}&{% endif %}page={{ page_obj.previous_page_number }}">← Previous</a>{% endif %}
+  <span class="small text-secondary">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?{% if selected_platform %}platform={{ selected_platform }}&{% endif %}{% if selected_source %}source={{ selected_source }}&{% endif %}page={{ page_obj.next_page_number }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<section class="panel empty-state">
+  <h2>No updates yet</h2>
+  <p>Run <code>python manage.py fetch_updates</code> to pull the first batch, or wait for the hourly cron job.</p>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} — Clients — Mission Control{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb" class="small mb-3">
+  <a href="{% url 'platforms:client_list' %}">Clients</a> <span class="text-secondary">/ {{ client.name }}</span>
+</nav>
+
+<div class="page-header">
+  <div>
+    <h1>{{ client.name }}</h1>
+    {% if client.industry %}<div class="actions"><span class="text-secondary">{{ client.industry }}</span></div>{% endif %}
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'platforms:client_edit' slug=client.slug %}">Edit client</a>
+</div>
+
+<section class="panel" aria-label="Client profile">
+  <dl class="metadata">
+    {% if client.website %}
+    <div><dt>Website</dt><dd><a href="{{ client.website }}" target="_blank" rel="noopener noreferrer">{{ client.website }}</a></dd></div>
+    {% endif %}
+    {% if client.contact_name %}
+    <div><dt>Primary contact</dt><dd>{{ client.contact_name }}{% if client.contact_email %}<small><a href="mailto:{{ client.contact_email }}">{{ client.contact_email }}</a></small>{% endif %}{% if client.contact_phone %}<small>{{ client.contact_phone }}</small>{% endif %}</dd></div>
+    {% endif %}
+    {% if client.notes %}
+    <div><dt>Notes</dt><dd>{{ client.notes|linebreaksbr }}</dd></div>
+    {% endif %}
+    <div><dt>Client since</dt><dd>{{ client.created_at|date:'M j, Y' }}</dd></div>
+  </dl>
+</section>
+
+<section class="panel" aria-labelledby="platforms-heading">
+  <div class="panel-header">
+    <h2 id="platforms-heading">Platforms <small>{{ platforms|length }}</small></h2>
+  </div>
+  {% if platforms %}
+  <div class="table-responsive" tabindex="0" role="region" aria-label="Client platforms">
+    <table class="table">
+      <thead><tr>
+        <th scope="col">Platform</th>
+        <th scope="col">Type</th>
+        <th scope="col">Lifecycle</th>
+        <th scope="col">Health</th>
+      </tr></thead>
+      <tbody>
+        {% for platform in platforms %}
+        <tr>
+          <td><a class="entity-link" href="{{ platform.get_absolute_url }}">{{ platform.name }}</a><span class="subline">{{ platform.get_platform_type_display }}</span></td>
+          <td>{{ platform.framework_display }}</td>
+          <td>{% include 'components/status.html' with value=platform.lifecycle_status label=platform.get_lifecycle_status_display only %}</td>
+          <td>{% include 'components/status.html' with value=platform.health_status only %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-note">No platforms linked to this client yet. Edit a platform and set its client to link it here.</p>
+  {% endif %}
+</section>
+{% endblock %}
