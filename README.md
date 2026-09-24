@@ -1,14 +1,17 @@
 # Mission Control
 
-Internal platform operations dashboard for tracking websites, applications, infrastructure, deployments, and health across your estate.
+Internal platform operations dashboard for tracking websites, applications, infrastructure, health, and work history across your estate.
 
-## Overview
+---
 
-Mission Control answers:
+## What It Does
 
-- What platforms exist, and what state are they in?
-- Where are they hosted, and what services run on them?
+Mission Control gives you a single place to answer:
+
+- What platforms exist and what state are they in?
+- Where are they hosted and what services run on them?
 - Are they healthy right now?
+- What credentials are used to administer them?
 - What work was done, when, and why?
 
 ---
@@ -17,135 +20,147 @@ Mission Control answers:
 
 | Area | Description |
 |---|---|
-| **Platforms** | Full CRUD with wizard onboarding. Framework, lifecycle, ownership, client. |
-| **Health checks** | HTTP probes with monitored URL paths, response times, og:image preview. |
-| **Dependencies** | Composer, npm, PyPI, WordPress plugin tracking via repository manifests. |
-| **Updates feed** | GitHub commits/releases, framework releases, deployment lag alerts. |
-| **Credentials vault** | Encrypted admin credentials per platform (Fernet AES). |
-| **Activity Log** | Operational work history across the estate (see below). |
-| **Clients** | Client records with industry, contacts, platform ownership. |
+| **Platforms** | Full CRUD with guided wizard onboarding. Tracks framework, lifecycle, ownership, and client. |
+| **Health checks** | HTTP probes with monitored URL paths, response time tracking, og:image preview. |
+| **Dependencies** | Composer, npm, PyPI, and WordPress plugin tracking via repository manifests. |
+| **Updates feed** | GitHub commits/releases, framework release alerts, deployment lag warnings. |
+| **Credentials vault** | Encrypted admin credentials per platform (Fernet AES-128). |
+| **Activity Log** | Operational work history across the estate with auto-logging and milestone feed. |
+| **Clients** | Client records with industry, contacts, and platform ownership. |
+| **Infrastructure** | Host and service inventory linked to platforms. |
 
 ---
 
-## Activity Log
+## Tech Stack
 
-### Purpose
-
-A lightweight historical layer recording what work was done, what changed, why, and which platform was affected. It is an **operational work history**, not a task management or project tracking system.
-
-### Model: `ActivityEntry`
-
-| Field | Type | Description |
-|---|---|---|
-| `id` | BigAutoField | Primary key |
-| `platform` | FK → Platform (nullable) | Associated platform; null = estate-wide |
-| `title` | CharField(300) | Short description of the activity |
-| `description` | TextField | Optional longer explanation |
-| `activity_type` | CharField (choices) | See activity types below |
-| `occurred_at` | DateTimeField | When the activity took place |
-| `is_milestone` | BooleanField | Visually highlights important events |
-| `created_by` | FK → User (nullable) | Who logged the entry |
-| `ref_url` | URLField | Commit URL, PR link, or external reference |
-| `created_at` | DateTimeField (auto) | When the record was created |
-| `updated_at` | DateTimeField (auto) | When the record was last modified |
-
-### Activity Types
-
-| Value | Label | Use for |
-|---|---|---|
-| `development` | Development | Code changes, features, bug fixes |
-| `deployment` | Deployment | Releases pushed to an environment |
-| `infrastructure` | Infrastructure | Server, hosting, network changes |
-| `configuration` | Configuration | Config, environment variable, or settings changes |
-| `maintenance` | Maintenance | Routine upkeep, updates, dependency bumps |
-| `content` | Content | Content migrations, CMS updates, data changes |
-| `operations` | Operations | Business or operational changes |
-| `decision` | Decision | Architectural or strategic decisions |
-| `incident` | Incident | Outages, errors, post-mortems |
-| `milestone` | Milestone | Significant achievements or transitions |
-| `other` | Other | Anything that doesn't fit above |
-
-### Scopes
-
-**Estate Activity** — `/activity/`  
-All activity across Mission Control, newest first. Filterable by platform, type, and milestones.
-
-**Platform Activity** — Platform detail page → Activity section  
-Activity associated with one specific platform. Shows the 10 most recent entries with a "View all →" link.
-
-**Milestones** — `/activity/?milestones=1`  
-Estate-wide view filtered to `is_milestone=True` entries only.
-
-### Manual Entries
-
-1. From the **Activity Log** page: click **+ Log Activity** to open the add form.
-2. From a **Platform detail** page: click **+ Log Activity** in the Activity section header to open the inline modal.
-3. All entries support: title, type, platform (optional), date/time, description, reference URL, and milestone toggle.
-
-### Automatic Logging
-
-These events are logged automatically without user intervention:
-
-| Event | Type | Trigger |
-|---|---|---|
-| Platform added to Mission Control | `operations` | Wizard completion |
-| Platform lifecycle status changed | `operations` | Platform edit form save |
-| Health status changed (e.g. DOWN, recovery) | `incident` / `operations` / `maintenance` | Health check run |
-| Domain added to platform | `infrastructure` | Domain add form |
-| Service added to platform | `infrastructure` | Service add form |
-
-Automatic logging is wrapped in a silent try/except — failures never surface to the user or break the triggering action.
-
-### Milestone Feed
-
-An Atom feed of milestone entries is available at `/activity/milestones.atom`. Subscribe with any feed reader to track major estate milestones without logging into Mission Control.
-
-The feed URL is also exposed as an `<link rel="alternate">` autodiscovery tag on the Activity Log page.
-
-### Per-User Feed
-
-The Activity Log filter bar includes a **contributor** dropdown that filters entries by the user who logged them. Clicking a username inline in any entry applies the same filter.
+| Layer | Technology |
+|---|---|
+| Backend | Django 6.1, Python 3.13 |
+| Database | PostgreSQL |
+| Container | Docker + Docker Compose |
+| Reverse proxy | nginx |
+| Encryption | cryptography (Fernet) |
+| Frontend | Vanilla JS, custom CSS |
 
 ---
 
-## Credentials Vault
+## Getting Started
 
-Admin credentials per platform are stored encrypted using Fernet symmetric encryption (`cryptography` library).
+### Requirements
 
-Set `CREDENTIALS_KEY` in `.env` to a valid Fernet key. Generate one with:
+- Docker and Docker Compose
+- Python 3.13+ (for local development without Docker)
+
+### Local Development
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your local values
+
+# Run migrations
+python manage.py migrate
+
+# Create a superuser
+python manage.py createsuperuser
+
+# Seed demo data (optional)
+python manage.py seed_demo
+
+# Start the dev server
+python manage.py runserver
+```
+
+### Docker (Production)
+
+```bash
+# Build and start
+docker compose -f docker-compose.prod.yml up --build -d
+
+# Apply migrations
+docker compose -f docker-compose.prod.yml exec web python manage.py migrate --no-input
+
+# Collect static files
+docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
+
+# Create a superuser
+docker compose -f docker-compose.prod.yml exec web python manage.py createsuperuser
+```
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in:
+
+```
+SECRET_KEY=          # Django secret key (required)
+DEBUG=False          # Set True for local dev
+DATABASE_URL=        # postgres://user:pass@host:5432/dbname
+ALLOWED_HOSTS=       # comma-separated, e.g. specter-ops.cloud
+CSRF_TRUSTED_ORIGINS=https://specter-ops.cloud
+CREDENTIALS_KEY=     # Fernet key for credential encryption (see below)
+GITHUB_TOKEN=        # Optional — enables repo/dependency scanning
+```
+
+### Generating a Credentials Key
 
 ```bash
 python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-If `CREDENTIALS_KEY` is not set, passwords are stored as plaintext (development fallback).
+If `CREDENTIALS_KEY` is not set, passwords are stored as plaintext (development fallback only — always set this in production).
 
 ---
 
-## Deployment
+## Activity Log
 
-```bash
-# Build and start
-docker compose up --build -d
+A lightweight operational work history. Records what work was done, what changed, why, and which platform was affected.
 
-# Apply migrations
-docker compose exec web python manage.py migrate
+### Activity Types
 
-# Collect static files
-docker compose exec web python manage.py collectstatic --noinput
-```
+| Type | Use for |
+|---|---|
+| `development` | Code changes, features, bug fixes |
+| `deployment` | Releases pushed to an environment |
+| `infrastructure` | Server, hosting, network changes |
+| `configuration` | Config, env var, or settings changes |
+| `maintenance` | Routine upkeep, dependency bumps |
+| `content` | Content migrations, CMS updates |
+| `operations` | Business or operational changes |
+| `decision` | Architectural or strategic decisions |
+| `incident` | Outages, errors, post-mortems |
+| `milestone` | Significant achievements or transitions |
+| `other` | Anything else |
 
-Environment variables required in `.env`:
+### Auto-Logged Events
 
-```
-SECRET_KEY=
-DEBUG=False
-DATABASE_URL=
-ALLOWED_HOSTS=
-CSRF_TRUSTED_ORIGINS=
-CREDENTIALS_KEY=
-GITHUB_TOKEN=        # optional, for repo/dependency scanning
-```
+These are logged automatically:
+
+| Event | Type |
+|---|---|
+| Platform added | `operations` |
+| Platform lifecycle changed | `operations` |
+| Health status changed (down/recovery) | `incident` / `operations` |
+| Domain added | `infrastructure` |
+| Service added | `infrastructure` |
+
+### Milestone Feed
+
+Subscribe to significant milestones at `/activity/milestones.atom` in any feed reader.
+
+---
+
+## Credentials Vault
+
+Admin credentials per platform are stored encrypted using Fernet symmetric encryption.
+
+- Passwords are never stored in plaintext when `CREDENTIALS_KEY` is set
+- The reveal endpoint (`POST /platforms/<slug>/credentials/<pk>/reveal/`) returns the decrypted value server-side only on explicit request
+- Credentials are masked by default in the UI with a copy-to-clipboard button
 
 ---
 
@@ -153,4 +168,52 @@ GITHUB_TOKEN=        # optional, for repo/dependency scanning
 
 ```bash
 python manage.py test platforms
+```
+
+---
+
+## Deployment
+
+The production stack uses Docker Compose with a Python 3.13-slim image, gunicorn, and nginx as a reverse proxy.
+
+**nginx** proxies `specter-ops.cloud` → `localhost:9001` → container port 8000.
+
+To redeploy after a code change:
+
+```bash
+# On the VPS
+cd /opt/mission-control
+
+# Extract new code (if deploying via archive)
+tar -xzf mc-deploy.tar.gz
+
+# Rebuild and restart
+docker compose -f docker-compose.prod.yml up --build -d
+
+# Run any new migrations
+docker compose -f docker-compose.prod.yml exec web python manage.py migrate --no-input
+```
+
+---
+
+## Project Structure
+
+```
+mission-control/
+├── mission_control/        # Django project settings and URLs
+├── platforms/              # Main app
+│   ├── models.py           # Platform, ActivityEntry, PlatformCredential, etc.
+│   ├── views.py            # All views including activity and credential endpoints
+│   ├── forms.py            # ModelForms
+│   ├── feeds.py            # Milestone Atom feed
+│   ├── crypto.py           # Fernet encrypt/decrypt helpers
+│   ├── updater/            # GitHub, framework, dependency, WordPress update logic
+│   └── migrations/         # Database migrations
+├── templates/
+│   ├── base.html           # Global nav and layout
+│   └── platforms/          # All page templates
+├── static/mission-control/ # CSS and JS
+├── deploy/                 # nginx config
+├── Dockerfile
+└── docker-compose.prod.yml
 ```
