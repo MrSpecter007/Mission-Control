@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Backup Codes — Mission Control{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="eyebrow">SECURITY</div>
+    <h1>Backup Codes</h1>
+    <p>Use these codes if you lose access to your authenticator app. Each code can only be used once.</p>
+  </div>
+  <a href="{% url 'two_factor:profile' %}" class="btn btn-outline-secondary">← Security</a>
+</div>
+
+<section class="panel" style="max-width:520px">
+  {% if device.token_set.all %}
+    <div class="mb-3">
+      <ul class="list-unstyled" style="font-family:monospace;font-size:1.1rem;line-height:2.2">
+        {% for token in device.token_set.all %}
+          <li style="letter-spacing:0.15em">{{ token.token }}</li>
+        {% endfor %}
+      </ul>
+      <p class="small text-secondary">Store these somewhere safe — a password manager or printed and locked away. They cannot be shown again after you leave this page.</p>
+    </div>
+  {% else %}
+    <p class="text-secondary">No backup codes generated yet. Generate a set below.</p>
+  {% endif %}
+
+  <form method="post" action="">
+    {% csrf_token %}
+    {{ form }}
+    <button class="btn btn-outline-secondary" type="submit">Regenerate backup codes</button>
+    <p class="small text-secondary mt-2">Regenerating codes invalidates all existing ones.</p>
+  </form>
+</section>
+{% endblock %}

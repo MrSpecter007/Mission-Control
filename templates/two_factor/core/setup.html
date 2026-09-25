@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Set up Two-Factor Authentication — Mission Control{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="eyebrow">SECURITY</div>
+    <h1>Two-Factor Authentication Setup</h1>
+  </div>
+</div>
+
+<section class="panel" style="max-width:520px">
+  {% if wizard.steps.current == 'welcome' %}
+    <h2>Secure your account</h2>
+    <p>Two-factor authentication adds a second layer of security. After enabling it, signing in will require your password plus a code from your authenticator app.</p>
+    <p class="text-secondary small">You'll need Google Authenticator, Authy, 1Password, or any TOTP-compatible app.</p>
+
+  {% elif wizard.steps.current == 'method' %}
+    <h2>Choose authentication method</h2>
+    <p class="text-secondary">Select how you'd like to receive verification codes.</p>
+
+  {% elif wizard.steps.current == 'generator' %}
+    <h2>Scan the QR code</h2>
+    <p>Open your authenticator app and scan this code to add Mission Control.</p>
+    <div class="text-center my-3">
+      <img src="{% url 'two_factor:qr' %}" alt="QR Code" style="width:200px;height:200px;border-radius:8px;background:#fff;padding:8px;display:inline-block">
+    </div>
+    <p class="text-secondary small mb-3">Can't scan? Enter the key manually into your app using the "Enter setup key" option.</p>
+    <p class="text-secondary small">Then enter the 6-digit code your app shows below to confirm it's working.</p>
+
+  {% elif wizard.steps.current == 'validation' %}
+    <h2>Verify your authenticator</h2>
+    <p>Enter the 6-digit code from your authenticator app to complete setup.</p>
+
+  {% else %}
+    <h2>Complete setup</h2>
+  {% endif %}
+
+  <form method="post" action="">
+    {% csrf_token %}
+    {{ wizard.management_form }}
+    {% if wizard.form.errors %}
+      <div class="notice notice-danger" role="alert">Invalid code. Please check your authenticator and try again.</div>
+    {% endif %}
+    {% for field in wizard.form %}
+      {% include 'components/field.html' with field=field %}
+    {% endfor %}
+    <div class="d-flex gap-2 mt-3">
+      {% if wizard.steps.current == 'welcome' %}
+        <button class="btn btn-primary" type="submit">Get started →</button>
+      {% elif wizard.steps.current == 'generator' %}
+        <button class="btn btn-primary" type="submit">Verify code →</button>
+      {% else %}
+        <button class="btn btn-primary" type="submit">Next →</button>
+      {% endif %}
+      <a href="{% url 'two_factor:profile' %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

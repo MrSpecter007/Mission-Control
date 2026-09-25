@@ -32,7 +32,10 @@
       {% endwith %}
     </nav>
     <div class="sidebar-footer"><small>INTERNAL OPERATIONS</small><div>{{ request.user.username }}</div>
-      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" type="submit">Sign out</button></form>
+      <div class="d-flex gap-2">
+        <a href="{% url 'two_factor:profile' %}" class="btn btn-sm btn-outline-secondary">Security</a>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary" type="submit">Sign out</button></form>
+      </div>
     </div>
   </aside>
   <div class="workspace">

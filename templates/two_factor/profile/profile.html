@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Security — Mission Control{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="eyebrow">ACCOUNT</div>
+    <h1>Security</h1>
+    <p>Manage two-factor authentication for your account.</p>
+  </div>
+</div>
+
+<section class="panel" style="max-width:520px">
+  <h2 style="font-size:1rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:1rem">Two-Factor Authentication</h2>
+
+  {% if default_device %}
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <span style="color:#4ade80;font-size:1.5rem">✓</span>
+      <div>
+        <strong>Enabled</strong>
+        <p class="small text-secondary mb-0">Your account is protected with an authenticator app.</p>
+      </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'two_factor:backup_tokens' %}" class="btn btn-sm btn-outline-secondary">Backup codes</a>
+      <a href="{% url 'two_factor:disable' %}" class="btn btn-sm btn-outline-danger">Disable 2FA</a>
+    </div>
+  {% else %}
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <span style="color:#f87171;font-size:1.5rem">○</span>
+      <div>
+        <strong>Not enabled</strong>
+        <p class="small text-secondary mb-0">Add an extra layer of security to your account.</p>
+      </div>
+    </div>
+    <a href="{% url 'two_factor:setup' %}" class="btn btn-primary">Set up two-factor authentication →</a>
+  {% endif %}
+</section>
+{% endblock %}

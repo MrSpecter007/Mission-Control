@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Disable Two-Factor Authentication — Mission Control{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="eyebrow">SECURITY</div>
+    <h1>Disable Two-Factor Authentication</h1>
+  </div>
+  <a href="{% url 'two_factor:profile' %}" class="btn btn-outline-secondary">← Cancel</a>
+</div>
+
+<section class="panel" style="max-width:480px">
+  <div class="notice notice-danger mb-3" role="alert">
+    Disabling two-factor authentication will make your account less secure. Only continue if you intend to set up a different authenticator.
+  </div>
+  <p>You are about to remove two-factor authentication from your account. You can re-enable it at any time.</p>
+  <form method="post" action="">
+    {% csrf_token %}
+    <button class="btn btn-danger" type="submit">Disable two-factor authentication</button>
+  </form>
+</section>
+{% endblock %}
