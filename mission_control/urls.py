@@ -4,7 +4,7 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('two_factor.urls', 'two_factor')),
+    path('', include('two_factor.urls')),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('', include('platforms.urls', namespace='platforms')),
 ]
